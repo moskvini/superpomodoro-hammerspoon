@@ -1,14 +1,22 @@
-# Hammerspoon Flow Autostart
+# Superpomodoro Hammerspoon
+
+## Зачем это сделано
+
+Помодоро хорошо работает только тогда, когда оно реально стартует. Проблема простая: открыл ноутбук, отвлекся, вернулся после паузы, забыл нажать Start — и вся система фокуса снова держится на силе воли.
+
+Этот проект делает помодоро чуть более автоматическим: Mac проснулся или вы вернулись после idle — Flow сам запускает рабочий интервал. При этом конфиг старается не мешать, если вы в Zoom, смотрите видео или держите браузер в fullscreen.
+
+Вся связка собирается на бесплатном софте и настраивается примерно за 10 минут с нуля: Hammerspoon бесплатный, базовой версии Flow достаточно, платные автоматизаторы не нужны.
+
+## Что это
 
 Небольшой Hammerspoon-конфиг, который автоматически запускает Flow-сессию после wake/unlock Mac и после возвращения к ноутбуку после idle.
-
-При этом Flow не стартует, если вы в Zoom, смотрите видео в медиаплеере или держите браузер в fullscreen.
 
 ## Что нужно поставить
 
 1. macOS.
 2. [Hammerspoon](https://www.hammerspoon.org/).
-3. Flow.app с AppleScript API и bundle id `design.yugen.Flow`.
+3. [Flow: Pomodoro & Study Timer](https://apps.apple.com/app/flow-pomodoro-study-timer/id1423210932) с AppleScript API и bundle id `design.yugen.Flow`.
 
 Hammerspoon можно поставить через Homebrew:
 
@@ -16,7 +24,7 @@ Hammerspoon можно поставить через Homebrew:
 brew install --cask hammerspoon
 ```
 
-Flow нужно установить отдельно. После установки можно проверить, что AppleScript API доступен:
+Flow нужно установить отдельно. Базовая версия бесплатная; Pro/In-App Purchases для этого конфига не обязательны. После установки можно проверить, что AppleScript API доступен:
 
 ```bash
 osascript -e 'tell application "Flow" to getPhase'
@@ -26,8 +34,8 @@ osascript -e 'tell application "Flow" to getTime'
 ## Установка
 
 ```bash
-git clone https://github.com/moskvini/hammerspoon-flow-autostart.git
-cd hammerspoon-flow-autostart
+git clone https://github.com/moskvini/superpomodoro-hammerspoon.git
+cd superpomodoro-hammerspoon
 ./install.sh
 ```
 
