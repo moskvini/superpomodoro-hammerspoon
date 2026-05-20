@@ -22,7 +22,7 @@ run_hs "return hs.inspect(flowAutoStart.status())"
 
 if [[ "${1:-}" == "--lock" ]]; then
   echo "==> Running real lock verification"
-  echo "This will send macOS to the login screen via hs.caffeinate.fastUserSwitch()."
+  echo "This will lock the screen via hs.caffeinate.lockScreen()."
   run_hs "return flowAutoStart.enterBreakLockMode('manual verification')"
 fi
 

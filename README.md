@@ -54,7 +54,7 @@ cd superpomodoro-hammerspoon
 - после wake/unlock Mac;
 - когда пользователь вернулся после idle, по умолчанию после 5 минут без клавиатуры/мыши.
 
-Во время фазы `Break`/`Перерыв` конфиг следит за таймером Flow и, когда на break-таймере остается 3 минуты, переводит macOS на экран входа через `hs.caffeinate.fastUserSwitch()`. Это не эмуляция нажатия клавиш, а системный Hammerspoon API. Так перерыв не превращается в “еще пять минут за ноутбуком”.
+Во время фазы `Break`/`Перерыв` конфиг следит за таймером Flow и, когда на break-таймере остается 3 минуты, блокирует экран через `hs.caffeinate.lockScreen()`. Это не эмуляция нажатия клавиш, а системный Hammerspoon API. Так перерыв не превращается в “еще пять минут за ноутбуком”.
 
 Flow не стартует, если:
 
@@ -95,7 +95,7 @@ breakLockAtMinute = 3
 ./scripts/verify.sh --lock
 ```
 
-`--lock` реально переведет macOS на экран входа через `hs.caffeinate.fastUserSwitch()`.
+`--lock` реально заблокирует экран через `hs.caffeinate.lockScreen()`.
 
 Проверить, что Hammerspoon видит конфиг:
 
@@ -127,7 +127,7 @@ hs -n -t 4 -c 'return flowAutoStart.requestFlowStart("manual test")'
 hs -n -t 4 -c 'return flowAutoStart.isBreakPhase("Break"), flowAutoStart.isBreakPhase("Перерыв")'
 ```
 
-Осторожно: ручной вызов `flowAutoStart.enterBreakLockMode("manual test")` реально переведет macOS на экран входа.
+Осторожно: ручной вызов `flowAutoStart.enterBreakLockMode("manual test")` реально заблокирует экран.
 
 ## Важно
 

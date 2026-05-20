@@ -196,23 +196,23 @@ function FlowAutoStart.parseTimeToSeconds(value)
 end
 
 function FlowAutoStart.lockModeAvailable()
-  return type(hs.caffeinate.fastUserSwitch) == "function"
+  return type(hs.caffeinate.lockScreen) == "function"
 end
 
 function FlowAutoStart.enterBreakLockMode(reason)
   FlowAutoStart.state.breakLockSent = true
   FlowAutoStart.state.lastBreakLockAt = now()
-  FlowAutoStart.state.lastBreakLockMethod = "hs.caffeinate.fastUserSwitch"
+  FlowAutoStart.state.lastBreakLockMethod = "hs.caffeinate.lockScreen"
   FlowAutoStart.state.lastBreakLockReason = reason
   FlowAutoStart.state.lastBreakLockError = nil
 
   if not FlowAutoStart.lockModeAvailable() then
-    FlowAutoStart.state.lastBreakLockError = "hs.caffeinate.fastUserSwitch is unavailable"
+    FlowAutoStart.state.lastBreakLockError = "hs.caffeinate.lockScreen is unavailable"
     return false, FlowAutoStart.state.lastBreakLockError
   end
 
   local ok, err = pcall(function()
-    hs.caffeinate.fastUserSwitch()
+    hs.caffeinate.lockScreen()
   end)
 
   if not ok then
@@ -476,7 +476,7 @@ function FlowAutoStart.selfTest()
 
   if not FlowAutoStart.lockModeAvailable() then
     table.insert(failures, {
-      name = "lock-mode:hs.caffeinate.fastUserSwitch",
+      name = "lock-mode:hs.caffeinate.lockScreen",
       expected = true,
       got = false,
     })
