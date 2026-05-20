@@ -54,6 +54,8 @@ cd superpomodoro-hammerspoon
 - после wake/unlock Mac;
 - когда пользователь вернулся после idle, по умолчанию после 5 минут без клавиатуры/мыши.
 
+Во время фазы `Break`/`Перерыв` конфиг следит за таймером Flow и, когда на break-таймере остается 3 минуты, отправляет системный шорткат `Control + Command + Q` (`⌃⌘Q`) и блокирует экран. Это помогает не превращать перерыв в “еще пять минут за ноутбуком”.
+
 Flow не стартует, если:
 
 - активен Zoom;
@@ -73,7 +75,11 @@ backThreshold = 5
 cooldown = 20
 checkInterval = 5
 startDelay = 2
+breakLockEnabled = true
+breakLockAtMinute = 3
 ```
+
+`breakLockAtMinute = 3` означает “когда на break-таймере Flow остается 3 минуты”. Блокировка срабатывает один раз за break-фазу, когда таймер пересекает этот порог сверху вниз.
 
 ## Проверка
 
@@ -100,6 +106,14 @@ hs -n -t 4 -c 'return hs.inspect(flowAutoStart.selfTest())'
 ```bash
 hs -n -t 4 -c 'return flowAutoStart.requestFlowStart("manual test")'
 ```
+
+Проверить, распознает ли конфиг break-фазу:
+
+```bash
+hs -n -t 4 -c 'return flowAutoStart.isBreakPhase("Break"), flowAutoStart.isBreakPhase("Перерыв")'
+```
+
+Осторожно: ручной вызов `flowAutoStart.lockScreenForBreak("manual test")` реально заблокирует экран.
 
 ## Важно
 

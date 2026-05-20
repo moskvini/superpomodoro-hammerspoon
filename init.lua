@@ -11,10 +11,19 @@ local FlowAutoStart = {
     cooldown = 20,         -- не дергать Flow чаще раза в 20 секунд
     checkInterval = 5,
     startDelay = 2,
+    breakLockEnabled = true,
+    breakLockAtMinute = 3, -- когда на Flow break-таймере осталось 3 минуты
   },
 
   state = {
+    breakLockSent = false,
+    breakLastRemainingSeconds = nil,
+    breakPhase = nil,
+    breakStartedAt = nil,
     lastStartCommandAt = 0,
+    lastBreakLockAt = nil,
+    lastBreakLockError = nil,
+    lastBreakLockReason = nil,
     lastStartAt = nil,
     lastStartError = nil,
     lastStartReason = nil,
@@ -155,6 +164,45 @@ function FlowAutoStart.flowCommand(command)
   return hs.osascript.applescript('tell application "Flow" to ' .. command)
 end
 
+function FlowAutoStart.isBreakPhase(phase)
+  local value = tostring(phase or "")
+  local lower = string.lower(value)
+
+  return lower:find("break", 1, true) ~= nil
+    or value:find("Перерыв", 1, true) ~= nil
+    or value:find("перерыв", 1, true) ~= nil
+end
+
+function FlowAutoStart.breakLockThreshold()
+  return math.max(0, FlowAutoStart.config.breakLockAtMinute * 60)
+end
+
+function FlowAutoStart.parseTimeToSeconds(value)
+  if value == nil then return nil end
+
+  local text = tostring(value)
+  local minutes, seconds = text:match("^(%d+):(%d+)$")
+  if minutes ~= nil and seconds ~= nil then
+    return tonumber(minutes) * 60 + tonumber(seconds)
+  end
+
+  local onlySeconds = text:match("^(%d+)$")
+  if onlySeconds ~= nil then
+    return tonumber(onlySeconds)
+  end
+
+  return nil
+end
+
+function FlowAutoStart.lockScreenForBreak(reason)
+  FlowAutoStart.state.breakLockSent = true
+  FlowAutoStart.state.lastBreakLockAt = now()
+  FlowAutoStart.state.lastBreakLockReason = reason
+  FlowAutoStart.state.lastBreakLockError = nil
+
+  hs.eventtap.keyStroke({ "ctrl", "cmd" }, "q")
+end
+
 function FlowAutoStart.runFlowStartScript()
   return hs.osascript.applescript([[
     tell application "Flow"
@@ -269,6 +317,55 @@ function FlowAutoStart.handleIdleTick()
       FlowAutoStart.state.pendingReason = nil
     end
   end
+
+  FlowAutoStart.handleBreakLockTick()
+end
+
+function FlowAutoStart.handleBreakLockTick()
+  if not FlowAutoStart.config.breakLockEnabled then
+    return
+  end
+
+  local ok, phase = FlowAutoStart.flowCommand("getPhase")
+  if not ok then
+    FlowAutoStart.state.lastBreakLockError = tostring(phase)
+    return
+  end
+
+  local timeOK, remainingTime = FlowAutoStart.flowCommand("getTime")
+  if not timeOK then
+    FlowAutoStart.state.lastBreakLockError = tostring(remainingTime)
+    return
+  end
+
+  local phaseText = tostring(phase)
+  if not FlowAutoStart.isBreakPhase(phaseText) then
+    FlowAutoStart.state.breakLockSent = false
+    FlowAutoStart.state.breakLastRemainingSeconds = nil
+    FlowAutoStart.state.breakPhase = nil
+    FlowAutoStart.state.breakStartedAt = nil
+    return
+  end
+
+  if FlowAutoStart.state.breakStartedAt == nil or FlowAutoStart.state.breakPhase ~= phaseText then
+    FlowAutoStart.state.breakLockSent = false
+    FlowAutoStart.state.breakLastRemainingSeconds = nil
+    FlowAutoStart.state.breakPhase = phaseText
+    FlowAutoStart.state.breakStartedAt = now()
+    FlowAutoStart.state.lastBreakLockError = nil
+  end
+
+  local remainingSeconds = FlowAutoStart.parseTimeToSeconds(remainingTime)
+  local previousRemainingSeconds = FlowAutoStart.state.breakLastRemainingSeconds
+  FlowAutoStart.state.breakLastRemainingSeconds = remainingSeconds
+
+  if not FlowAutoStart.state.breakLockSent
+    and previousRemainingSeconds ~= nil
+    and remainingSeconds ~= nil
+    and previousRemainingSeconds > FlowAutoStart.breakLockThreshold()
+    and remainingSeconds <= FlowAutoStart.breakLockThreshold() then
+      FlowAutoStart.lockScreenForBreak("break minute " .. tostring(FlowAutoStart.config.breakLockAtMinute))
+  end
 end
 
 function FlowAutoStart.status()
@@ -279,8 +376,10 @@ function FlowAutoStart.status()
   return {
     blocked = blocked,
     blockReason = blockReason,
+    breakLockThreshold = FlowAutoStart.breakLockThreshold(),
     context = context,
     flowAppleScriptOK = phaseOK and timeOK,
+    flowIsBreak = FlowAutoStart.isBreakPhase(phase),
     flowPhase = phase,
     flowTime = remainingTime,
     idle = hs.host.idleTime(),
@@ -317,8 +416,45 @@ function FlowAutoStart.selfTest()
     end
   end
 
+  local phaseCases = {
+    { "Flow", false },
+    { "Break", true },
+    { "Long Break", true },
+    { "Перерыв", true },
+    { "Длинный перерыв", true },
+  }
+
+  for _, test in ipairs(phaseCases) do
+    local isBreak = FlowAutoStart.isBreakPhase(test[1])
+    if isBreak ~= test[2] then
+      table.insert(failures, {
+        name = "phase:" .. test[1],
+        expected = test[2],
+        got = isBreak,
+      })
+    end
+  end
+
+  local timeCases = {
+    { "3:00", 180 },
+    { "1:01", 61 },
+    { "45", 45 },
+    { "bad", nil },
+  }
+
+  for _, test in ipairs(timeCases) do
+    local seconds = FlowAutoStart.parseTimeToSeconds(test[1])
+    if seconds ~= test[2] then
+      table.insert(failures, {
+        name = "time:" .. test[1],
+        expected = test[2],
+        got = seconds,
+      })
+    end
+  end
+
   return {
-    cases = #cases,
+    cases = #cases + #phaseCases + #timeCases,
     failures = failures,
     ok = #failures == 0,
   }
