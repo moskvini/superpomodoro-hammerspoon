@@ -83,6 +83,20 @@ breakLockAtMinute = 3
 
 ## Проверка
 
+Быстро прогнать все безопасные проверки:
+
+```bash
+./scripts/verify.sh
+```
+
+Проверить вместе с реальной блокировкой экрана:
+
+```bash
+./scripts/verify.sh --lock
+```
+
+`--lock` реально переведет macOS на экран входа через `hs.caffeinate.fastUserSwitch()`.
+
 Проверить, что Hammerspoon видит конфиг:
 
 ```bash
