@@ -23,6 +23,7 @@ local FlowAutoStart = {
     lastStartCommandAt = 0,
     lastBreakLockAt = nil,
     lastBreakLockError = nil,
+    lastBreakLockMethod = nil,
     lastBreakLockReason = nil,
     lastStartAt = nil,
     lastStartError = nil,
@@ -194,13 +195,32 @@ function FlowAutoStart.parseTimeToSeconds(value)
   return nil
 end
 
-function FlowAutoStart.lockScreenForBreak(reason)
+function FlowAutoStart.lockModeAvailable()
+  return type(hs.caffeinate.fastUserSwitch) == "function"
+end
+
+function FlowAutoStart.enterBreakLockMode(reason)
   FlowAutoStart.state.breakLockSent = true
   FlowAutoStart.state.lastBreakLockAt = now()
+  FlowAutoStart.state.lastBreakLockMethod = "hs.caffeinate.fastUserSwitch"
   FlowAutoStart.state.lastBreakLockReason = reason
   FlowAutoStart.state.lastBreakLockError = nil
 
-  hs.eventtap.keyStroke({ "ctrl", "cmd" }, "q")
+  if not FlowAutoStart.lockModeAvailable() then
+    FlowAutoStart.state.lastBreakLockError = "hs.caffeinate.fastUserSwitch is unavailable"
+    return false, FlowAutoStart.state.lastBreakLockError
+  end
+
+  local ok, err = pcall(function()
+    hs.caffeinate.fastUserSwitch()
+  end)
+
+  if not ok then
+    FlowAutoStart.state.lastBreakLockError = tostring(err)
+    return false, FlowAutoStart.state.lastBreakLockError
+  end
+
+  return true, FlowAutoStart.state.lastBreakLockMethod
 end
 
 function FlowAutoStart.runFlowStartScript()
@@ -364,7 +384,7 @@ function FlowAutoStart.handleBreakLockTick()
     and remainingSeconds ~= nil
     and previousRemainingSeconds > FlowAutoStart.breakLockThreshold()
     and remainingSeconds <= FlowAutoStart.breakLockThreshold() then
-      FlowAutoStart.lockScreenForBreak("break minute " .. tostring(FlowAutoStart.config.breakLockAtMinute))
+      FlowAutoStart.enterBreakLockMode("break minute " .. tostring(FlowAutoStart.config.breakLockAtMinute))
   end
 end
 
@@ -384,6 +404,7 @@ function FlowAutoStart.status()
     flowTime = remainingTime,
     idle = hs.host.idleTime(),
     idleTimerRunning = FlowAutoStart.idleTimer ~= nil and FlowAutoStart.idleTimer:running(),
+    lockModeAvailable = FlowAutoStart.lockModeAvailable(),
     menuIcon = hs.menuIcon(),
     powerWatcherPresent = FlowAutoStart.powerWatcher ~= nil,
     state = FlowAutoStart.state,
@@ -453,8 +474,16 @@ function FlowAutoStart.selfTest()
     end
   end
 
+  if not FlowAutoStart.lockModeAvailable() then
+    table.insert(failures, {
+      name = "lock-mode:hs.caffeinate.fastUserSwitch",
+      expected = true,
+      got = false,
+    })
+  end
+
   return {
-    cases = #cases + #phaseCases + #timeCases,
+    cases = #cases + #phaseCases + #timeCases + 1,
     failures = failures,
     ok = #failures == 0,
   }
